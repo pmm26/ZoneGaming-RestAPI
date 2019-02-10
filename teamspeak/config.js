@@ -26,6 +26,7 @@ const groupSettings = {
         guestChannelGroup: 8,
         serverGroupMember: 7,
         serverGroupTemplate: 9,
+        gameServerGroupTemplate: 9,
     }
 
 let ChannelGroupsAdmin = [ groupSettings.channelAdmin, groupSettings.channelMod, groupSettings.channelMember]

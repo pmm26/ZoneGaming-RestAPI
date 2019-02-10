@@ -17,6 +17,12 @@ var ts3 = new TeamSpeak3({
     keepalive: true
 })
 
+
+
+
+
+
+
 /**
  * Create channel
  * 
@@ -103,9 +109,9 @@ const edit = (public, cid, name, password, topic, description) => {
             properties.channel_name = name
         }
 
-        
-        properties.channel_password = password
-        
+        if (!_.isEmpty(password)) {
+            properties.channel_password = password
+        }
 
         if (!_.isEmpty(description)) {
             properties.channel_description = description
@@ -134,6 +140,42 @@ const edit = (public, cid, name, password, topic, description) => {
 };
 
 
+const changeUserDescription = (uuid, description) => {
+
+    
+
+    if ((_.isString(uuid)) && (_.isString(description))) {
+
+        
+        
+        return ts3.getClientByUID(uuid)
+        .then(client => {
+
+            let params = {
+                clid: client.getID(),
+                client_description: description
+            };
+
+
+            return ts3.execute("clientedit", params)
+            .then(data => { 
+                return true;
+            })
+            .catch(err => {
+                throw failedApiReply('changeUserDescription: Error changin user description', err)
+            })
+
+        })
+        .catch(err => {
+            throw failedApiReply('changeUserDescription: Error fetching client', err)
+        })
+
+
+
+    } else {
+        throw failedApiReply('changeUserDescription: Invalid Input', 500)
+    }
+};
 
 /**
  * Get Array of SubChannels
@@ -150,11 +192,11 @@ const subChannelList = (cid) => {
         return ts3.channelList({pid: cid })
             .then(channels => { return channels })
             .catch(err => {
-                throw failedApiReply(err, 'setChannelGroupbyUid: Error Saving data on the database'); 
+                throw failedApiReply('setChannelGroupbyUid: Error Saving data on the database', err)
             })
         
     } else {
-        console.log('subChannelList: Invalid Input');
+        throw failedApiReply('subChannelList: Invalid Input', 500)
     }
 }
 
@@ -175,10 +217,12 @@ const getClidFromUid = (uid) => {
             .then(data => { 
                 return data.clid; 
             })
-            .catch(err => console.error('getClidFromUid error:', err));
+            .catch(err => {
+                throw failedApiReply('getClidFromUid error:', err)
+            });
 
     } else {
-        console.log('getClidFromUid: Invalid Input');
+        throw failedApiReply('getClidFromUid: Invalid Input', 500)
     }
 };
 
@@ -231,9 +275,37 @@ ts3.on("close", e => {
 
 
 
+const failedApiReply = (msg, error) => {
+
+    if (!error.error) {
+
+        failedApi = {
+            status: 'FaiL',
+            message: msg,
+            error: error
+        }
+        return failedApi;
+    }
+
+    return error;
+}
+
+const ApiReply = (msg, data) => {
+
+        api = {
+            status: 'OK',
+            message: msg,
+            data: data
+        }
+        
+        return api;
+
+}
+
 
 
 module.exports = {
+    changeUserDescription,
     create,
     edit,
     subChannelList,

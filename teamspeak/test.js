@@ -1,4 +1,4 @@
-const app = require("./index"); //Main
+const app = require("./main"); //Main
 
 
 //Core
@@ -10,14 +10,16 @@ let _ = require('lodash');
 
 
 //Database
-var {mongoose} = require('../db/mongoose');
-var {gameArea} = require('../models/game_area');
-var {Teams} = require('../models/teams');
+var mongoose = require('../db/mongoose');
+var {gameArea} = require('../db/models/game_area');
+var {Teams} = require('../db/models/teams');
 
 
 
 //let ownerUuid = 'slOGgvdBuVrdr5EAPVdtdpiO2I8=';
 let ownerUuid = '0z3KOFg5TVbq0VesMmkGz54rrGk=';
+
+mongoose.connectDB();
 
 ts3.on("ready", () => {
 
@@ -34,6 +36,25 @@ ts3.on("ready", () => {
             return failedApi;
         }
     }
+    
+    // ts3core.changeUserDescription('0z3KOFg5TVbq0VesMmkGz54rrGk=', 'Hi Man!')
+
+
+    app.serverInfo();
+    // console.log()
+
+    // app.createTeam('name', 'password', '5c43910e24504a3e7f413200', 1, true)
+    // app.getUsersByIp('129.12.173.194')
+    // app.sendTokenRequest('5c4c7d3c449b6a3e68c9a380', 23, 'slOGgvdBuVrdr5EAPVdtdpiO2I8=') 
+    // .then(api => {
+
+    //     console.log(api);
+    // })
+    // .catch(api => {
+    //     console.log(api);
+    // })
+
+
 
 /*
     ts3.getChannelGroupByID(5).then(cannel => {
@@ -126,7 +147,7 @@ ts3.on("ready", () => {
     // app.reassignChannelGroups('5bcc8d0f732f3c14ece73b4d')
     
 
-    app.channelRemoveChannelGroupClients(519)
+    //app.channelRemoveChannelGroupClients(519)
 
     //app.moveChannel('5bcc8d0f732f3c14ece73b4d', '5bcc8d0b3c1af814d72dc716')
 
@@ -140,27 +161,20 @@ ts3.on("ready", () => {
 
     //app.claimChannels(ownerUuid, 'name')
 
-   // app.createTeam('name', 'password', '5bcd16547e63455f2b1afdaf', 1, true)
-    // .then(api => {
-    //     console.log(api);
-    // })
-    // .catch(api => {
-    //     console.log(api);
-    // })
 
     //app.addUserToTeam('5bd1c3787b14440d6d55cd08', '5bcd16547e63455f2b1afdaf', 1)
 
     //app.getTopFreeChannel(1).then(console.log())
 
-    app.freeUpChanels()
+    // app.freeUpChanels()
 
 
 
-    //app.createTeam('ZoneG', 'password', ownerUuid, 2, true)
+    // app.createTeam('ZoneG', 'password', ownerUuid, 1, true)
     //app.createTeam('name', 'password', ownerUuid, 2, false)
 
 
-    //ts3.getClientByUID(ownerUuid)
+    // ts3.getClientByUID(ownerUuid)
     //.then(client => {
     //    console.log(client);
     //});
@@ -171,12 +185,12 @@ ts3.on("ready", () => {
 
     //app.setClientChannelGroupUid(5, 547, ownerUuid)
 
-    .then(api => {
-        console.log(api);
-    })
-    .catch(api => {
-        console.log(api);
-    })
+    // .then(api => {
+    //     console.log(api);
+    // })
+    // .catch(api => {
+    //     console.log(api);
+    // })
     //ts3core.getClidFromUid(ownerUuid)
     //ts3.setClientChannelGroup(5, 126, 4);
 
