@@ -28,16 +28,21 @@ var {channelCrawl} = require('../models/channelCrawl')
 //////////////////////////////
 
 /** 
-TODO NEXT TIME:
+DONE:
 
 - Add User to the Channel Member *Done
 - Remove user from Channel Member *Done
 - Channel Crawl *Done
 - Move Channel *Done
-- Delete Team 
-- 
 - Create Server Group *Done
 - Change Name *Done
+
+
+TODO NEXT TIME:
+
+
+- Delete Team 
+- 
 
 Todo Later:
 - Add more Channels X
@@ -53,6 +58,33 @@ fazer pagina com o score e fazer website.
 Futuro erro
 Criar um canal kd o user ja nao esta o ts
 */
+
+const failedApiReply = (err, msg) => {
+
+    if (!(err.code == 500)) {
+
+        failedApi = {
+            code: 500,
+            status: 'FAIL',
+            msg: msg,
+            err: err
+        }
+        return failedApi;
+    }
+    return err;
+}
+
+const ApiReply = (msg, data) => {
+
+        api = {
+            code: 400,
+            status: 'OK',
+            msg: msg,
+            data: data
+        }
+        return api;
+
+}
 
 
 
@@ -89,10 +121,11 @@ const deleteBottonTeams = () => {
  */
 const addUserToTeam = (teamObjectID, memberObjectID, permission) => {
 
-    Members.findById(memberObjectID)
+    //Fetch Members database
+    return Members.findById(memberObjectID)
     .then(member => {
-        console.log(member)
-            Teams.findByIdAndUpdate(teamObjectID,
+        //adding the user to the team members array
+        Teams.findByIdAndUpdate(teamObjectID,
             { $push: {
                 members: {   
                     memberId: member._id,      
@@ -100,24 +133,56 @@ const addUserToTeam = (teamObjectID, memberObjectID, permission) => {
                     permissions: permission
                 }
             }
-            
-        }).then(say => { 
-            console.log(say)
-        }).catch(err => console.error('1:' + err))
-
-        return Teams.findById(teamObjectID)
-            .then(team => {
-                //console.log(team)
-                setChannelGroupbyUid(config.groupSettings.guestChannelGroup, team.mainChannelId, member.uuid)
-        
-                if (team.serverGroupId != null) {
-                    setClientServerGroupByUid(member.uuid, sgid)
-                    .catch(err => console.error('1:' + err))    
-            }
+        }).catch(err => {
+            throw failedApiReply(err, 'addUserToTeam: Failed updating the database'); 
         })
-        .catch(err => console.error('1:' + err))
+
+        //fetch teams database 
+        return Teams.findById(teamObjectID)
+        .then(team => {
+
+            //If team has a servergroup, then add the user to it
+            if (team.serverGroupId != null) {
+                setClientServerGroupByUid(member.uuid, sgid)
+                .catch(err => {
+                   throw failedApiReply(err, 'addUserToTeam: Failed setClientServerGroupByUid.'); 
+                })   
+            }
+
+            if (permission == 1) {
+                channelGroupId = config.groupSettings.channelAdmin;
+
+            } else if (permission == 2) {
+                channelGroupId = config.groupSettings.channelAdmin;
+
+            } else if (permission == 3) {
+                channelGroupId = config.groupSettings.channelMod;
+
+            } else if (permission == 4) {
+                channelGroupId = config.groupSettings.channelMember;
+
+            } else {
+                channelGroupId = config.groupSettings.guestChannelGroup;
+
+            }
+
+            //set channelGroup permission on all channels
+            return setChannelGroupbyUid(channelGroupId, team.mainChannelId, member.uuid)
+            .then(info => {
+                return ApiReply('Channel Group Assigned', info)
+            })
+            .catch(err => {
+                throw failedApiReply(err, 'addUserToTeam: Failed setChannelGroup.'); 
+             })
+
+        })
+        .catch(err => {
+            throw failedApiReply(err, 'addUserToTeam: Failed fetching database team.'); 
+        })
     })
-    .catch(err => console.error('1:' + err))
+    .catch(err => {
+        throw failedApiReply(err, 'addUserToTeam: Failed fetching database members.'); 
+    })
 }
 
 
@@ -128,33 +193,51 @@ const addUserToTeam = (teamObjectID, memberObjectID, permission) => {
  */
 const removeUserFromTeam = (teamObjectID, memberObjectID) => {
 
-    Members.findById(memberObjectID)
+    //Fetch Members database
+    return Members.findById(memberObjectID)
     .then(member => {
-        console.log(member)
-            Teams.findByIdAndUpdate(teamObjectID,
+        //fetch teams database and 
+        Teams.findByIdAndUpdate(teamObjectID,
             { $pull: {
                 members: {   
                     memberId: member._id,      
                 }
             }
             
-        }).then(say => { 
-            console.log(say)
-        }).catch(err => console.error('1:' + err))
-
-        return Teams.findById(teamObjectID)
-            .then(team => {
-                //console.log(team)
-                setChannelGroupbyUid(config.groupSettings.guestChannelGroup, team.mainChannelId, member.uuid)
-        
-                if (team.serverGroupId != null) {
-                    removeClientServerGroupByUid(member.uuid, team.serverGroupId)
-                    .catch(err => console.error('1:' + err))    
-            }
+        }).catch(err => {
+            throw failedApiReply(err, 'removeUserFromTeam: Failed updating the db records'); 
         })
-        .catch(err => console.error('1:' + err))
+
+        //fetch teams database and 
+        return Teams.findById(teamObjectID)
+        .then(team => {
+
+            //If team has a servergroup then remove the user
+            if (team.serverGroupId != null) {
+                removeClientServerGroupByUid(member.uuid, team.serverGroupId)
+
+                .catch(err => {
+                    throw failedApiReply(err, 'removeUserFromTeam: Failed clearing ChannelGroup.'); 
+                })  
+            }
+
+            //set guest channelGroup permission on all channels
+            return setChannelGroupbyUid(config.groupSettings.guestChannelGroup, team.mainChannelId, member.uuid)
+            .then(info => {
+                return ApiReply('removeUserFromTeam: Channel Group Assigned', info)
+            })
+            .catch(err => {
+                throw failedApiReply(err, 'removeUserFromTeam: Failed setChannelGroup.'); 
+            })
+        })
+        .catch(err => {
+            throw failedApiReply(err, 'addUserToTeam: Failed fetching database team.'); 
+        })
     })
-    .catch(err => console.error('1:' + err))
+    .catch(err => {
+        throw failedApiReply(err, 'addUserToTeam: Failed fetching database members.'); 
+    })
+        
 }
 
 
@@ -167,20 +250,40 @@ const removeUserFromTeam = (teamObjectID, memberObjectID) => {
 const setChannelGroupbyUid = (sgid, mainChannelId, uuid) => {
 
     //Get the List of the SubChannels;
-    ts3core.subChannelList(mainChannelId)
+    return ts3core.subChannelList(mainChannelId)
     .then(channels => {
-        //Set Remove Channel Group to all SubChannels
-        channels.forEach((channel)  => {
-        
-            ts3core.getCldbidFromUid(uuid)
-                    .then(cldbid => {
-                        ts3.setClientChannelGroup(sgid, channel._propcache.cid, cldbid)
-                        .catch(err => console.error('1:' + err))
-            })
-            .catch(err => console.error('1:' + err))
+
+        //Get cldbid of User (Required to set Channel Admin)
+        return ts3core.getCldbidFromUid(uuid)
+        .then(cldbid => {
+                                
+            //Works Like a ForEach Loop but it's async
+                let promiseArr = channels.map(channel => {
+                    //Set ChannelGroup to user
+                    return ts3.setClientChannelGroup(sgid, channel._propcache.cid, cldbid)
+                    .then(info => {
+                        return info;
+                    })
+                });
+                
+                //Resolves and Checks if there was any problem with executiong returns results.
+                return Promise.all(promiseArr)
+                .then(resultsArray => {
+                    return ApiReply('Channel Group Assigned', resultsArray)
+                    // do something after the loop finishes
+                }).catch(err => {
+                    throw failedApiReply(err, 'setChannelGroupbyUid: Error Setting ChannelGroup.'); 
+                    // do something when any of the promises in array are rejected
+                })
+            //
+        })
+        .catch(err => {
+            throw failedApiReply(err, 'setChannelGroupbyUid: Error getting cldbid of client.'); 
         })
     })
-    .catch(err => console.error('1:' + err))
+    .catch(err => {
+        throw failedApiReply(err, 'setChannelGroupbyUid: Error Getting SubChannel List.'); 
+    })
 }
 
 
@@ -190,9 +293,11 @@ const setChannelGroupbyUid = (sgid, mainChannelId, uuid) => {
  */
 const reassignChannelGroups = (teamObjectID) => {
 
+    //Fetch Team from DB
     return Teams.findById(teamObjectID)
     .then(team => {
 
+        //Remove all ChannelGroup users from the channels.
         return channelRemoveChannelGroupClients(team.mainChannelId)
         .then(() => {
             
@@ -200,11 +305,15 @@ const reassignChannelGroups = (teamObjectID) => {
             return ts3core.subChannelList(team.mainChannelId)
             .then(channels => {
 
+                //Works Like a ForEach Loop but it's async
+                let promiseArr1 = channels.map(channel => {
+                    // return the promise to array
 
-                //Set Remove Channel Group to all SubChannels
-                channels.forEach((channel)  => {
+                    //Works Like a ForEach Loop but it's async
+                    let promiseArr2 = team.members.map(member => {
+                        // return the promise to array                
 
-                    team.members.forEach( member => {
+                   
                         if (member.permissions == 1) {
                             channelGroupId = config.groupSettings.channelAdmin;
 
@@ -223,31 +332,54 @@ const reassignChannelGroups = (teamObjectID) => {
 
                         }
 
-                        ts3core.getCldbidFromUid(member.memberUuid)
+                        return ts3core.getCldbidFromUid(member.memberUuid)
                         .then(cldbid => {
-                             ts3.setClientChannelGroup(channelGroupId, channel._propcache.cid, cldbid)
-                            .catch(err => console.error('1:' + err))
-                    
-                        }) 
-                        .catch(err => console.error('1:' + err))
+                            return ts3.setClientChannelGroup(channelGroupId, channel._propcache.cid, cldbid)
+                            .then(() => {
+                                return ApiReply('Channel Group Assigned', member.memberUuid)
+                            })                   
+                        })
                     })
+
+
+                    //2 FOR EACH
+                    //Resolves and Checks if there was any problem with executiong returns results.
+                    return Promise.all(promiseArr2)
+                    .then(resultsArray2 => {
+                        
+                        return resultsArray2;
+                    })
+                    .catch(err => {
+                        throw failedApiReply(err, 'reassignChannelGroups: Set Channel Group Failed.'); 
+                    })
+                    //
+
+                });
                 
+
+                //1 FOR EACH
+                //Resolves and Checks if there was any problem with executiong returns results.
+                return Promise.all(promiseArr1)
+                .then(resultsArray1 => {
+                    return resultsArray1;
                 })
-                
+                .catch(err => {
+                    throw failedApiReply(err, 'reassignChannelGroups: Failed getting ClDbID.'); 
+                })
+                //
 
             })
-            .then(() => {
-                return api = {
-                    status: 'OK',
-                    msg: 'ChannelGroups reassigned successfully!'
-                }
-
+            .catch(err => {
+                throw failedApiReply(err, 'reassignChannelGroups: Failed getting subChannelList.'); 
             })
-            .catch(err => console.error('1:' + err))
         })
-        .catch(err => console.error('1:' + err)) 
+        .catch(err => {
+            throw failedApiReply(err, 'reassignChannelGroups: Failed clearing ChannelGroup.'); 
+        })
     })
-    .catch(err => console.error('1:' + err))
+    .catch(err => {
+        throw failedApiReply(err, 'reassignChannelGroups: Failed getting Team from the database.'); 
+    })
 }
 
 
@@ -266,43 +398,96 @@ const channelRemoveChannelGroupClients = (mainChannelId) => {
     .then(channels => {
       
        
-        //Set Remove Channel Group to all SubChannels
-        channels.forEach((channel)  => {
+        //Works Like a ForEach Loop but it's async
+        let promiseArr1 = channels.map(channel => {
 
-            //Do this for all the ChannelGroups that exist
-            config.ChannelGroupsAdmin.forEach((channelGroupId) => {
+            //Works Like a ForEach Loop but it's async
+            let promiseArr2 = config.ChannelGroupsAdmin.map(channelGroupId => {
+                // return the promise to array                
 
-            
                 //Get ChannelGroup object
-                ts3.getChannelGroupByID(channelGroupId)
+                return ts3.getChannelGroupByID(channelGroupId)
                 .then(channelGroup => {
 
                     //Get the List of clients that are part of that ChannelGroup
-                    channelGroup.clientList(channel._propcache.cid)
-                    .then(clients => { 
+                    return channelGroup.clientList(channel._propcache.cid)
+                    .then(clients => {                       
+                        
+                        
+                        
+                        //Works Like a ForEach Loop but it's async
+                        let promiseArr3 = clients.map(client => {
+                            // return the promise to array                
 
-                        //Set Guest ChannelGroup to all Clients of that group
-                        clients.forEach(client => {
+                            return ts3.setClientChannelGroup(config.groupSettings.guestChannelGroup, client.cid, client.cldbid)
+                            .then(() => {
+                                return ApiReply('Channel Group Assigned', {cgid:channelGroupId})
+                            })
+                            
 
-                            ts3.setClientChannelGroup(config.groupSettings.guestChannelGroup, client.cid, client.cldbid)
                         })
-                    })
 
-                    //If there were no Clients in the ChannelGroup
-                    .catch(err => {
-                            if (err.id == 1281) {
-                            console.error('ChannelGroup was empty')
-                            } else {
-                                console.error(err)
-                            }
+
+                        //3 FOR EACH
+                        //Resolves and Checks if there was any problem with executiong returns results.
+                        return Promise.all(promiseArr3)
+                        .then(resultsArray3 => {
+                            
+                            return resultsArray3;
+                        })
+                        .catch(err => {
+                            throw failedApiReply(err, 'channelRemoveChannelGroupClients: Error Setting ChannelGroup.'); 
+                        })
+                        //
+
+                    }).catch(err => {
+                        if (err.id==1281) {
+                            return ApiReply('No Members in the group', {cgid:channelGroupId})
+                        } else {
+                            throw failedApiReply(err, 'reassignChannelGroups: Failed getting Client List.'); 
+                        }
                     })
-                }).catch(err => console.error('1:' + err)) 
+                })
+                .catch(err => {
+                    throw failedApiReply(err, 'reassignChannelGroups: Failed to getting channelGroup.'); 
+                })
             })
-            
-        });
-    }).catch(e => {
-        console.log(e);
-    });
+
+
+            //2 FOR EACH
+            //Resolves and Checks if there was any problem with executiong returns results.
+            return Promise.all(promiseArr2)
+            .then(resultsArray2 => {
+                
+                    return resultsArray2;
+                
+            })
+            .catch(err => {
+                throw failedApiReply(err, 'reassignChannelGroups: Failed to get Channel Group by ID Or getting ClientList of group.'); 
+            })
+            //
+
+        })
+
+
+        //3 FOR EACH
+        //Resolves and Checks if there was any problem with executiong returns results.
+        return Promise.all(promiseArr1)
+        .then(resultsArray1 => {
+                
+            return resultsArray1;
+        })
+        .catch(err => {
+            throw failedApiReply(err, 'reassignChannelGroups: Failed to do Everything.'); 
+        })
+        //
+
+    }).then(results => {
+        return ApiReply('Sucess', results)
+    
+    }).catch(err => {
+        throw failedApiReply(err, 'reassignChannelGroups: Failed to get SubChannel List.'); 
+    })
 }
 
 
@@ -313,14 +498,17 @@ const channelRemoveChannelGroupClients = (mainChannelId) => {
  */
 const moveChannel = (oldTeamObjectID, newTeamObjectID) => {
 
-    Teams.findById(newTeamObjectID)
+    //Getting New Team data from the Database 
+    return Teams.findById(newTeamObjectID)
     .then((newTeam) => {
-            Teams.findById(oldTeamObjectID)
+
+            //Getting Old Team data from the Database 
+            return Teams.findById(oldTeamObjectID)
             .then((oldTeam) => {
             
 
 
-                //Update Database Records
+                //Update New Team Database with location info of old team
                 Teams.findByIdAndUpdate(
                     newTeamObjectID,
                     { $set: {   
@@ -333,11 +521,13 @@ const moveChannel = (oldTeamObjectID, newTeamObjectID) => {
                         status: 'clean'
                     }
                 })
-                .catch(err => console.error('1:' + err))
+                .catch(err => {
+                    throw failedApiReply(err, 'addUserToTeam: Failed fetching database members.'); 
+                })
 
 
-                //Update Database Records
-                Teams.findByIdAndUpdate(
+                //Update Old Team Database with location info of New team
+                return Teams.findByIdAndUpdate(
                     oldTeamObjectID,
                     { $set: {   
 
@@ -350,29 +540,61 @@ const moveChannel = (oldTeamObjectID, newTeamObjectID) => {
                     }
                 })             
                 
+                
                 .then(() => {
-                    Teams.findById(oldTeamObjectID)
-                    //Teams.find()
+                    //Find old Team
+                    return Teams.findById(oldTeamObjectID)
                     .then((team) => {
-                        console.log(team)
                        
-                        claimChannels(team.teamName, '', team.ownerID, team._id, true )
+                        //Claim Channels on TeamSpeak
+                        return claimChannels(team.teamName, '', team.ownerID, team._id, true )
                         .then(() => {
-                             
 
-                            freeUpChanels()
+                            //Free Up Old Channel
+                            return freeUpChanels()
+                            .then(() => {
+
+                                //Giving Channel Permission to Users
+                                return reassignChannelGroups(oldTeamObjectID)
+                                .then(info => {
+                                    //Return Success!
+                                    return ApiReply('Channel Group Assigned', info)
+
+                                })
+                                .catch(err => {
+                                    throw failedApiReply(err, 'addUserToTeam: Failed fetching database members.'); 
+                                })
+                                
+                            })
+                            .catch(err => {
+                                throw failedApiReply(err, 'addUserToTeam: Failed fetching database members.'); 
+                            })
+                            
+
+                        })
+                        .catch(err => {
+                            throw failedApiReply(err, 'addUserToTeam: Failed fetching database members.'); 
                         })
                     })
-                    reassignChannelGroup(oldTeamObjectID)
+                    .catch(err => {
+                        throw failedApiReply(err, 'addUserToTeam: Failed fetching database members.'); 
+                    })
                     
+                    
+                    
+                })
+                .catch(err => {
+                    throw failedApiReply(err, 'addUserToTeam: Failed fetching database members.'); 
                 })
                 
             })
-            .then((s) => console.log('Sucess 3', s))
-            .catch(err => console.error('3:' + err))
+            .catch(err => {
+                throw failedApiReply(err, 'addUserToTeam: Failed fetching database members.'); 
+            })
     })
-    .then((s) => console.log('Sucess 4', s))
-    .catch(err => console.error('4:' + err))
+    .catch(err => {
+        throw failedApiReply(err, 'addUserToTeam: Failed fetching database members.'); 
+    })
 }
 
 
@@ -383,30 +605,41 @@ const moveChannel = (oldTeamObjectID, newTeamObjectID) => {
  */
 const changeTeamName = ( teamObjectID, name) => {
     
-    Teams.findByIdAndUpdate(teamObjectID,
+    return Teams.findByIdAndUpdate(teamObjectID,
         { $set: {   
             teamName: name,
         }})
         .then(team => {
-            console.log(team)
-            gameArea.findOne({areaId: team.gameArea})
+
+            //Get Area ID to add the First Letter to the Name
+            return gameArea.findOne({areaId: team.gameArea})
             .then((area) => {
                 if (!area) {
-                   console.log('No Area I guess');
+                    throw failedApiReply('err', 'changeTeamName: No area Found!');
                 } 
     
                 //making the name
                 let processedName = '[cspacer' + team.spacerNumber + ']' + area.areaName[0] + team.channelOrder + ' - ★ ' + name + ' ★';
     
                 //Edit the claimed channel
-                ts3core.edit(true, team.mainChannelId, processedName, '', 'topic', 'description');
-    
-
-                ts3.serverGroupRename(team.serverGroupId, name)
+                return ts3core.edit(true, team.mainChannelId, processedName, '', 'topic', 'description')
+                .then(() => {
+                    ts3.serverGroupRename(team.serverGroupId, name)
+                    .then(() => {
+                        return ApiReply('Name Changed Sucessfully', group.sgid)
+                    })    
+                    .catch(err => {
+                        throw failedApiReply(err, 'changeTeamName: Error Changing ServerGroup Name');
+                    })
+                })
             })
-            .catch(err => console.error('Error Fetching gameArea changeTeamName:' + err))
+            .catch(err => {
+                throw failedApiReply(err, 'changeTeamName: Error Changing Name');
+            })
     })
-        .catch(err => console.error('Error Chaging Name DB changeTeamName:' + err))
+    .catch(err => {
+        throw failedApiReply(err, 'changeTeamName: Error Fetching Team');
+    })
 }
 
 
@@ -416,100 +649,154 @@ const changeTeamName = ( teamObjectID, name) => {
  */
 const createServerGroup = (uuid) => {
 
-    Teams.findOne({ownerID: uuid })
+    return Teams.findOne({ownerID: uuid })
     .then(team => {
 
         //console.log(config.groupSettings.serverGroupTemplate)
         
-    
-            ts3.serverGroupCopy(config.groupSettings.serverGroupTemplate, 0, 1, team.teamName)
-            .then(group => {
-            // console.log(group)
+        //Make a Copy of the template ServerGroup
+        return ts3.serverGroupCopy(config.groupSettings.serverGroupTemplate, 0, 1, team.teamName)
+        .then(group => {
 
+            //get cldbid of the user
+            return ts3core.getCldbidFromUid(uuid)
+            .then(cldbid => {
 
-                ts3core.getCldbidFromUid(uuid)
-                .then(cldbid => {
-
-                    ts3.serverGroupAddClient(cldbid, group.sgid)
-                    .then(() => {
+                //Add ServerGroup to Client
+                return ts3.serverGroupAddClient(cldbid, group.sgid)
+                .then(() => {
                         
 
 
-                        Teams.findOneAndUpdate(
-                            { ownerID: uuid },
-                            { $set: {   
-                                serverGroupId: group.sgid,
-                            }})
-                            .catch(err => console.error('Error Saving to Database createServerGroup:' + err))
-
+                    return Teams.findByIdAndUpdate(team._id,
+                        { $set: {   
+                            serverGroupId: group.sgid,
+                        }})
+                        //Group was created sucessfully Return Sucessfull Message
+                        .then(() => {
+                            return ApiReply('ServerGroup Created Sucessfully', group.sgid)
                         })
-                        .catch(err => console.error('Error Adding user to group createServerGroup:' + err))
 
-                    })
-                    .catch(err => console.error('Error fetching cldbid createServerGroup:' + err))
+                        .catch(err => {
+                            throw failedApiReply(err, 'createServerGroup: Error Saving data on the database'); 
+                        })
 
-                console.log(group.sgid)
+                })
+                .catch(err => {
+                    throw failedApiReply(err, 'createServerGroup: Error Adding user to group');
+                })
+
             })
-            .catch(err => console.error('Error createServerGroup:' + err));
-        
+            .catch(err => {
+                throw failedApiReply(err, 'createServerGroup: Error fetching cldbid '); 
+            })
 
+        })
+        .catch(err => {
+            throw failedApiReply(err, 'createServerGroup: Error Copying Group');
+        })
     })
-    .catch(err => console.error('Database SaveError createServerGroup:' + err))
-
+    .catch(err => {
+        throw failedApiReply(err, 'createServerGroup: Error Fetching Team');
+    })
 }
 
 
-/**
+/** Needs work
  * Crawls the TeamSpeak every few minutes and stores when the channels were last used. 
  * Used for channel deletion.
  */
 const crawlerChannels = () => {
-    ts3.channelList()
-
+    
+    return ts3.channelList()
     .then(channels => {
         //console.log(channels)
 
-        Teams.find({status: 'OK'})
+        return Teams.find({status: 'OK'})
         .then(teams => {
             //console.log(teams)
         
             mainChannelsIDs = [];
 
-            teamsArray.forEach(team => {
-
-                mainChannelsIDs.push(teamsArray.mainChannelId)
-            
+            //Works Like a ForEach Loop but it's async
+            let promiseArr = teams.map(team => {
+                // return the promise to array
+                
+                return team.mainChannelId;
             });
-
-            //console.log(mainChannelsIDs)
+              
+            //Resolves and Checks if there was any problem with executiong returns results.
+            return Promise.all(promiseArr)
+            .then(mainChannelsIDs => {
+                return  mainChannelsIDs;
+                // do something after the loop finishes
+            }).catch(err => {
+                throw failedApiReply(err, 'setChannelGroupbyUid: Error Setting ChannelGroup.'); 
+                // do something when any of the promises in array are rejected
+            })
+            //
+        })
+        
+        
+        .then(mainChannelsIDs => {
 
             edited = [];
 
-            channels.forEach(channel => {
 
+            //Works Like a ForEach Loop but it's async
+            let promiseArr2 = channels.map(channel => {
+                //console.log(mainChannelsIDs)
+
+                //If the channel parent ID is in the mainChannelsIDs array then do this
                 if (mainChannelsIDs.includes(channel._propcache.pid)) {
-                    //console.log(channel._propcache.channel_name)
                     
+                    //if the channel has users inside and the team hasn't been edited yet.
                     if (channel._propcache.total_clients > 0 & !(edited.includes(channel._propcache.pid))) {
+                        //Add the channel to the list of Edited channels
                         edited.push(channel._propcache.pid)
-                        console.log('Added ', channel._propcache.pid)
 
-                        Teams.findOneAndUpdate(
+                        //Update lastused on the DB
+                        return Teams.findOneAndUpdate(
                             { mainChannelId: channel._propcache.pid },
                             { $set: {   
                                 lastUsed: Date.now(),
                             }})
-                        .then(info => console.log)
+                        .then(info => {
+                            return ApiReply("Channel Updated.", channel._propcache.cid)
+                        })
                         //Save to the Database update timeStamp with the current date.
 
+                    } else {
+                        return ApiReply("Channel has already been edited or doesn't have anyone inside.", channel._propcache.cid)
                     }
+                } else {
+                    return ApiReply("Channel doesn't belong to any team / is a spacer!", channel._propcache.cid)
                 }
             });
+
+        
+            
+            //Resolves and Checks if there was any problem with executiong returns results.
+            return Promise.all(promiseArr2)
+            .then(resultsArray => {
+                return ApiReply('Channel Group Assigned', resultsArray)
+                // do something after the loop finishes
+            }).catch(err => {
+                throw failedApiReply(err, 'setChannelGroupbyUid: Error Setting ChannelGroup.'); 
+                // do something when any of the promises in array are rejected
+            })
+        //
+  
         })
-        .catch(err => console.error('Error Getting the ID:', err));
+
+        .catch(err => {
+            throw failedApiReply(err, 'createTeam: Failed to fetch Team DB');
+        }) 
         
     })
-    .catch(err => console.error('Error Claming Channels:', err));  
+    .catch(err => {
+        throw failedApiReply(err, 'createTeam: Failed to fetch Team DB');
+    }) 
 
 }
 
@@ -522,25 +809,65 @@ const crawlerChannels = () => {
  * @param {Number} gameAreaId 
  * @param {boolean} move 
  */
-const createTeam = (name, password, ownerUuid, gameAreaId, move) => {
+const createTeam = (name, password, memberObjectID, gameAreaId, move) => {
 
+    //Get top free Channel
     return getTopFreeChannel(gameAreaId)
     .then(team => {
-        console.log()
-        console.log(team)
-        console.log()
-        if (team != null) {
-            claimChannels(name, password, ownerUuid, team._id, move )
-            .catch(err => console.error('Error Claming Channels:', err));
+        
+        //Get Members Database
+        return Members.findById(memberObjectID)
+        .then(member => {
+            //If there is a Free Team then Claim it
+            if (team != null) {
+                //Claim Channel
+                return claimChannels(name, password, member.uuid, team._id, move )
+                .then(() => {
+                    //Add user to the Channel and Give Permissions
+                    return addUserToTeam(team._id, memberObjectID, 1)
+                    .then(() => {
+                        return ApiReply('createChannels: Channels Sucessfully Claimed', team)
+                        
+                    })
+                    .catch(err => {
+                        throw failedApiReply(err, 'createTeam: Failed to add to Team');
+                    })  
+                })
+                .catch(err => {
+                    throw failedApiReply(err, 'createTeam: Failed to Claim Channels');
+                })  
+                
+            //If not Create a new one
+            } else {
+                //Create Channel
+                return createChannels(name, password, member.uuid, gameAreaId, move)
+                .then((newteam) => {
+                    //Add user to the Channel and Give Permissions
+                    return addUserToTeam(newteam.data._id, memberObjectID, 1)
+                    .then(() => {
+                        return ApiReply('createChannels: Channels Sucessfully Created', newteam)
+
+
+                    })
+                    .catch(err => {
+                        throw failedApiReply(err, 'createTeam: Failed to add to Team');
+                    })  
+                })
+                .catch(err => {
+                    throw failedApiReply(err, 'createTeam: Failed to create Channels');
+                })  
+                
+            }
             
-        } else {
-            createChannels(name, password, ownerUuid, gameAreaId, move)
-            .catch(err => console.error('Error Creating Channels:', err));
-            
-        }
+        })
+        .catch(err => {
+            throw failedApiReply(err, 'createTeam: Failed fetch Member DB');
+        })  
         
     })
-    .catch(err => console.error('createTeam error:', err));
+    .catch(err => {
+        throw failedApiReply(err, 'createTeam: Failed to fetch Team DB');
+    })  
 
 
 }
@@ -556,6 +883,9 @@ const getTopFreeChannel = (gameAreaId) => {
     .sort('+channelOrder')
     .then((team) => {
        return(team);
+    })
+    .catch(err => {
+        throw failedApiReply(err, 'getTopFreeChannel: Failed to get db');
     })
 
 
@@ -581,60 +911,59 @@ const claimChannels = (name, password, ownerUuid, teamObjectID, move ) => {
         gameArea.findOne({areaId: team.gameArea})
         .then((area) => {
             if (!area) {
-               console.log('No Area I guess');
+                throw failedApiReply('err', 'claimChannels: No Area Claiming');
             } 
 
             //making the name
             let processedName = '[cspacer' + team.spacerNumber + ']' + area.areaName[0] + team.channelOrder + ' - ★ ' + name + ' ★';
 
             //Edit the claimed channel
-            ts3core.edit(true, team.mainChannelId, processedName, '', 'topic', 'description');
-
+            return ts3core.edit(true, team.mainChannelId, processedName, '', 'topic', 'description')
+            .then(() => {
+            
+            
             //Make subchannels Public
             setSubChannelsPublic(team.mainChannelId, password)
-
-            //Make client Channel Admin
-            setClientChannelGroupUid(config.groupSettings.channelAdmin, team.mainChannelId, ownerUuid)
+            .catch(err => {
+                throw failedApiReply(err, 'claimChannels: Failed to edit channel');
+            })
+            
 
             //Move client to channel
-            moveToFirstChannel(team.mainChannelId, ownerUuid)
-            
-            .then(() => {
+            if (move) {
+                moveToFirstChannel(team.mainChannelId, ownerUuid)
+            }
+                
+            //Update Database Records
+            return Teams.findByIdAndUpdate(
+                team._id,
+                { $set: {   
+                    teamName: name,
+                    status: 'OK',
+                    ownerID: ownerUuid,
+                }}) 
+                
+                .then((teamClaimed) => {
+                    if (!teamClaimed) { 
+                        throw failedApiReply(err, 'claimChannels: No db');
+                    }  
 
-                //Update Database Records
-                Teams.findByIdAndUpdate(
-                    team._id,
-                    { $set: {   
-                        teamName: name,
-                        status: 'OK',
-                        ownerID: ownerUuid,
-                        members: [ {   
-                            memberId: 1,      
-                            memberUuid: ownerUuid,
-                            permissions: 1
-                        } ]
-                    }}) //Add Member
-
-
-                .then((todo) => {
-                    if (!todo) { 
-                        console.log('Error', todo);
-                    }
-                    console.log('Sucess', todo);
+                    return ApiReply('createChannels: Channels Sucessfully Created', teamClaimed)
     
-                }).catch((e) => {
-                    console.log('Error', e);
-                });
+            }).catch(err => {
+                throw failedApiReply(err, 'claimChannels: Failed to edit Database');
+            })
     
-            }).catch(e => {
-                console.log('claimTeam: Error Editing Channels', e);
-            });
+            }).catch(err => {
+                throw failedApiReply(err, 'claimChannels: Failed to edit channel!');
+            })
+
+
         })
 
-    }).catch(e => {
-        console.log('claimTeam: Team Not Found', e);
-        
-    });
+    }).catch(err => {
+        throw failedApiReply(err, 'createChannels: Failed to find gameArea');
+    })
 }
 
 
@@ -659,7 +988,7 @@ const createChannels = (name, password, ownerUuid, gameAreaId, move) => {
 
     //TODO Add the Topic and Description Generator
 
-
+    //Fetch Game Area data
     return gameArea.findOne({areaId: gameAreaId})
     .then((area) => {
         if (!area) {
@@ -669,74 +998,62 @@ const createChannels = (name, password, ownerUuid, gameAreaId, move) => {
 
         //Generate the Name of the Channel
         let processedName = '[cspacer' + area.nextSpacerNumber + ']' + area.areaName[0] + area.nextChannelNumber + ' - ★ ' + name + ' ★'
-        //console.log(name);
 
-        
-        createGroupOfChannels(processedName, password, topic, description, area.nextSpacerNumber, area.lastChannelId)
+        //Create Channels
+        return createGroupOfChannels(processedName, password, topic, description, area.nextSpacerNumber, area.lastChannelId)
         .then(channelIds => {
+            channelIds = channelIds.data
 
-            //Storing in the database details about the Channel and the Teamspeak Channel ids.
-            let team = new Teams(Object.assign({
+           
+             //Update the GameArea
+            return gameArea.findOneAndUpdate(
+                { areaId: gameAreaId },
+                { $inc: { nextChannelNumber: 1, nextSpacerNumber: 1 },
+                $set: { lastChannelId: channelIds.spacerBarId } })
+            
+            .then(() => {
+                //Moving client to the first channel
+                if (move) {
+                    moveToFirstChannel(channelIds.mainChannelId, ownerUuid) 
+                    .catch(err => {
+                        throw failedApiReply(err, 'createChannels: Failed to Move User');
+                    })
+                }
+            })
+            .then(() => { //Saving the data to the database
+
+                //Storing in the database details about the Channel and the Teamspeak Channel ids.
+                let team = new Teams(Object.assign({
                     teamName: name,
                     ownerID: ownerUuid,
                     channelOrder: area.nextChannelNumber,
                     spacerNumber: area.nextSpacerNumber,
                     gameArea: gameAreaId,
-                    // creationDate:
-                    // nextMove:
-                    // lastUsed:
-                    members: [ {   
-                        memberId: 1,      
-                        memberUuid: ownerUuid,
-                        permissions: 1
-                    }
-                    ]
-                    
                 }, channelIds));
+                
+                //Adding team to the Database
+                return team.save()
+                .then((saved) => {
+                    return ApiReply('createChannels: Channels Sucessfully Created', saved)
+                }, (err) => {
+                    throw failedApiReply(err, 'createChannels: Failed to save team on the DB');
+                })
+                
+                .catch(err => {
+                    throw failedApiReply(err, 'createChannels: Failed Saving Team / Moving / setChannelGroup');
+                })
 
-            //Save the New Channel
-            team.save()
-            .then((doc) => { //Saving the data to the database
-                console.log();
-                console.log('Data Saved Successfully', doc)
-                console.log();
-            }, (e) => {
-                console.log('Data Could not be saved:', e)
-            }).catch((e) => {
-                console.log('Error Writing to DB', e);
-            });
-
-            //Update the GameArea
-            gameArea.findOneAndUpdate(
-                { areaId: gameAreaId },
-                { $inc: { nextChannelNumber: 1, nextSpacerNumber: 1 },
-                  $set: { lastChannelId: channelIds.spacerBarId } })
-            .then((todo) => {
-                if (!todo) { 
-                    console.log('Error', todo);
-                }
-                console.log('Sucess', todo);
-        
-            }).catch((e) => {
-                console.log('Error', e);
-            });
-
-            setClientChannelGroupUid(config.groupSettings.channelAdmin, channelIds.mainChannelId, ownerUuid)
-
-            if (move) {
-                moveToFirstChannel(channelIds.mainChannelId, ownerUuid) 
-            }
             
-         
-        
+            }).catch(err => {
+                throw failedApiReply(err, 'createChannels: Failed to update gameArea DB');
+            })
+        }).catch(err => {
+            throw failedApiReply(err, 'createChannels: Failed to create Group of Channels');
         })
-        .catch((e) => {
-            console.log('Error', e);
-        });
+
+    }).catch(err => {
+        throw failedApiReply(err, 'createChannels: Failed to find gameArea');
     })
-    .catch((e) => {
-            console.log('Not found!', e)
-    });
 
 }
 
@@ -752,40 +1069,48 @@ const createChannels = (name, password, ownerUuid, gameAreaId, move) => {
  */
 const createGroupOfChannels = (name, password, topic, description, spacerNumber, lastCid) => {
 
-    //Connect to the database and get the last ids and numbers of the channel
+    
 
+    //Create the mainChannel
     return ts3core.create( false, name, '', topic, description, '', lastCid)
     .then(mainChannel => { 
-        
+        //Create Sub Channels
         ts3core.create(true, config.channelSettings.subChannelName + ' 1', password, topic, description, mainChannel._propcache.cid, '')
         ts3core.create(true, config.channelSettings.subChannelName + ' 2', password, topic, description, mainChannel._propcache.cid, '');
         ts3core.create(true, config.channelSettings.subChannelName + ' 3', password, topic, description, mainChannel._propcache.cid, '');
         ts3core.create(true, config.channelSettings.awayChannelName, password, topic, description, mainChannel._propcache.cid, '');
-            
+        
+        //Create Spacer Bar
         return ts3core.create(false, '[rspacer' + spacerNumber + ']', '', '', '', '', mainChannel._propcache.cid)
         .then(spacerChannel => {
+            
+            //Create Spacer Bar
             return ts3core.create(false, '[*spacer' + spacerNumber + ']' + config.channelSettings.spacerBar, '', '', '', '', spacerChannel._propcache.cid)
             .then(spacerBar => {
-                          
+                
+                //Create a object with all the Channels Ids that were just created
                 let channelIds = {
                     mainChannelId: mainChannel._propcache.cid,
                     spacerEmptyId: spacerChannel._propcache.cid,
                     spacerBarId: spacerBar._propcache.cid
                 }
 
-                console.log(channelIds);
 
-                //SAVE DATA TO THE DATABASE
-                return channelIds;
+                //Return Data
+                return ApiReply('createGroupOfChannels: Channels Sucessfully Created', channelIds)
             
             })
-            .catch(err => console.log('Errror Saving', err));        
+            .catch(err => {
+                throw failedApiReply(err, 'createGroupOfChannels: Failed to create Spacer Bar');
+            })        
         })
-        .then(channelIds => { return channelIds; })
-        .catch(err => console.log('Error Creating Sub Channels', err));
+        .catch(err => {
+            throw failedApiReply(err, 'createGroupOfChannels: Failed to create Blank Spacer');
+        })
     })
-    .then(channelIds => { return channelIds; })
-    .catch(err => console.log('Error Creating Main Channel', err));
+    .catch(err => {
+        throw failedApiReply(err, 'createGroupOfChannels: Failed to Main Channel/SubChannels');
+    })
 }
 
 
@@ -794,13 +1119,17 @@ const createGroupOfChannels = (name, password, topic, description, spacerNumber,
  */
 const freeUpChanels = () => {
 
-    return Teams.find().then((teams) => {
-        teams.forEach(team => {
-            
+    return Teams.find()
+    .then((teams) => {
+
+        //Works Like a ForEach Loop but it's async
+        let promiseArr = teams.map(team => {
+        // return the promise to array
+                
            // if ((team.status == 'OK') | (team.status == 'clean')) { //TODO: Add Time Check
-           if ( (team.status == 'clean')) {
+           if ((team.status == 'clean')) {
                 //Get the First Letter of the Area Name
-                gameArea.findOne({areaId: team.gameArea})
+                return gameArea.findOne({areaId: team.gameArea})
                 .then((area) => {
                     if (!area) {
                        console.log('Area Not Found!');
@@ -811,48 +1140,72 @@ const freeUpChanels = () => {
 
                     //Edit Channel to set the New Name
                     ts3core.edit(false, team.mainChannelId, channelNameFree, '', '', '')
-                    .then(() => console.log('Name Channel changed!'))
-                    .catch((e) => {
-                        console.log('Error', e);
-                    });
-                })
-                .catch((e) => {
-                    console.log('Error', e);
-                });
+                    .catch(err => {
+                        throw failedApiReply(err, 'freeUpChanels: Failed to edit channel');
+                    })
 
-                //Make all the SubChannels Private
-                setSubChannelsPrivate(team.mainChannelId)
 
-                //TODO: Remove old Channel Admins
-                channelRemoveChannelGroupClients(team.mainChannelId)
+                }).then(() => {
 
-               
-                //Set channel free in the database.
-                Teams.findByIdAndUpdate(team._id,
-                    { $set: { 
-                        serverGroupId: null, 
-                        teamName: null, 
-                        status: 'free', 
-                        ownerID: null,
-                        members: [] } 
+                    //Make all the SubChannels Private
+                    setSubChannelsPrivate(team.mainChannelId)
+                    .catch(err => {
+                        throw failedApiReply(err, 'freeUpChanels: Failed to setSubChannelsPrivate');
+                    })
+
+                }).then(() => {
+
+                    
+                    channelRemoveChannelGroupClients(team.mainChannelId)
+                    .catch(err => {
+                        throw failedApiReply(err, 'freeUpChanels: Failed to channelRemoveChannelGroupClients');
+                    })
+
+
+                }).then(() => {
+
+                    //Set channel free in the database.
+                    return Teams.findByIdAndUpdate(team._id,
+                        { $set: { 
+                            serverGroupId: null, 
+                            teamName: null, 
+                            status: 'free', 
+                            ownerID: null,
+                            members: [] } 
+                    
+                        }).then(() => {
+                        return ApiReply('freeUpChanels: Channel freed up', {name: team.teamName, _id: team._id})
                 
-                    }).then((todo) => {
-                    if (!todo) { 
-                        console.log('Error', todo);
-                    }
-                    console.log('Sucess', todo);
-            
-                    }).catch((e) => {
-                    console.log('Error', e);
-                });
+                        }).catch(err => {
+                            throw failedApiReply(err, 'freeUpChanels: Failed to find team db and Update');
+                        })
+                })
+                
+            } else if (team.status == 'free') {
+                return ApiReply('freeUpChanels: Channel is already free', {name: team.teamName, _id: team._id})
+            } else {
+                return ApiReply('freeUpChanels: Channel is still in use', {name: team.teamName, _id: team._id})
             }
         });
-    }, (e) => {
-        console.log('Data Could not be retrived:', e)
+
+            
+        //Resolves and Checks if there was any problem with executiong returns results.
+        return Promise.all(promiseArr)
+        .then(resultsArray => {
+            return ApiReply('freeUpChanels: Sucess', resultsArray)
+            // do something after the loop finishes
+        }).catch(err => {
+            throw failedApiReply(err, 'freeUpChanels: For Each Failed.'); 
+            // do something when any of the promises in array are rejected
+        })
+        //
+
+    }, (err) => {
+        throw failedApiReply(err, 'freeUpChanels: Failed to find team');
     })
-    .catch(e => {
-        console.log(e);
-    });
+    .catch(err => {
+        throw failedApiReply(err, 'freeUpChanels: Failed to find team');
+    })
 }
 
 ////////////////////////////////////
@@ -870,13 +1223,24 @@ const moveToFirstChannel = (mainChannelId, ownerUuid) => {
     return ts3core.subChannelList(mainChannelId)
        .then(channels => {
     
-            ts3core.getClidFromUid(ownerUuid)
+            return ts3core.getClidFromUid(ownerUuid)
             .then(clid => { 
                 //Set Channel Group to all SubChannels                
-                    ts3.clientMove(clid, channels[0]._propcache.cid)
+                    return ts3.clientMove(clid, channels[0]._propcache.cid)
+                    .then(() => {
+                        return ApiReply('moveToFirstChannel: Client Moved Sucessfully', null)
+                    })
+                    .catch(err => {
+                        throw failedApiReply(err, 'moveToFirstChannel: Failed to Move Client');
+                    })
+            })
+            .catch(err => {
+                throw failedApiReply(err, 'moveToFirstChannel: Failed to get getClidFromUid');
             })
         })
-        .catch(err => console.error('getClidFromUid error:', err));
+        .catch(err => {
+            throw failedApiReply(err, 'moveToFirstChannel: Failed to get subChannelList');
+        })
 }
 
 
@@ -891,10 +1255,15 @@ const setClientServerGroupByUid = (ownerUuid, sgid) => {
     return ts3core.getCldbidFromUid(ownerUuid)
     .then(cldbid => { 
         //Get list of SubChannels
-       ts3.serverGroupAddClient(cldbid, sgid);
+       return ts3.serverGroupAddClient(cldbid, sgid)
+       .then((data) => {
+            return ApiReply('setClientServerGroupByUid: Server Group Assigned', data)
+       })
             
     })
-    .catch(err => console.error('getClidFromUid error:', err));
+    .catch(err => {
+        throw failedApiReply(err, 'setClientServerGroupByUid: Failed to get cldbid');
+    })
 }
 
 
@@ -908,11 +1277,15 @@ const removeClientServerGroupByUid = (ownerUuid, sgid) => {
     //Get User DBID
     return ts3core.getCldbidFromUid(ownerUuid)
     .then(cldbid => { 
-        //Get list of SubChannels
-       ts3.serverGroupDelClient(cldbid, sgid);
-            
+        //Remove Server Group
+        return ts3.serverGroupDelClient(cldbid, sgid)
+        .then((data) => {
+            return ApiReply('removeClientServerGroupByUid: Success', data)
+        })       
     })
-    .catch(err => console.error('getClidFromUid error:', err));
+    .catch(err => {
+        throw failedApiReply(err, 'removeClientServerGroupByUid: Failed to get cldbid');
+    })
 }
 
 
@@ -928,18 +1301,41 @@ const setClientChannelGroupUid = (cgid, mainChannelId, ownerUuid) => {
     return ts3core.getCldbidFromUid(ownerUuid)
     .then(cldbid => { 
         //Get list of SubChannels
-        ts3core.subChannelList(mainChannelId)
+        return ts3core.subChannelList(mainChannelId)
         .then(channels => {
-    
-            //Set Channel Group to all SubChannels
-            channels.forEach(channel => {
-            ts3.setClientChannelGroup(cgid, channel._propcache.cid, cldbid);
-            
-            });     
+
+            //Works Like a ForEach Loop but it's async
+            let promiseArr = channels.map(channel => {
+                
+                //Set  Channel Group to Client
+                return ts3.setClientChannelGroup(cgid, channel._propcache.cid, cldbid)
+                .then(() => {
+                    return channel._propcache.cid;
+                })
+                .catch(err => {
+                    throw failedApiReply(err, 'setClientChannelGroupUid: Failed to get cldbid');
+                })
+            });
+                
+            //Resolves and Checks if there was any problem with executiong returns results.
+            return Promise.all(promiseArr)
+            .then(resultsArray => {
+                return ApiReply('Channel Group Assigned', resultsArray)
+                // do something after the loop finishes
+            }).catch(err => {
+                throw failedApiReply(err, 'setChannelGroupbyUid: Error Setting ChannelGroup.'); 
+            // do something when any of the promises in array are rejected
+            })
+            //
+
         })
-        .catch(err => console.error('getClidFromUid error:', err));
+        .catch(err => {
+            throw failedApiReply(err, 'setClientChannelGroupUid: Failed to get cldbid');
+        })
     })
-    .catch(err => console.error('getClidFromUid error:', err));
+    .catch(err => {
+        throw failedApiReply(err, 'setClientChannelGroupUid: Failed to get cldbid');
+    })
 }
 
 
@@ -954,26 +1350,48 @@ const setSubChannelsPrivate = (cid) => {
     //Get the List of the SubChannels;
     return ts3core.subChannelList(cid)
     .then(channels => {
-      
+        if (channels.length == 0) {
+        throw failedApiReply('', 'setSubChannelsPrivate: Channel doesn\'t exist');
        
-        //Set Channel Group to all SubChannels
-        channels.forEach((value, i)  => {
+        } else {
 
-            subIndex = i + 1;
-        
-            if (!(subIndex == channels.length)) {
-                subName = config.channelSettings.subChannelName + " " + subIndex;
+            //Works Like a ForEach Loop but it's async
+            let promiseArr = channels.map((channel, i) => {
+                //This is used to name the SubChannels
+                subIndex = i + 1;
+                //Making the Name
+                if (!(subIndex == channels.length)) {
+                    subName = config.channelSettings.subChannelName + " " + subIndex;
 
-            } else {
-                subName = config.channelSettings.awayChannelName;
-            }
+                } else {
+                    subName = config.channelSettings.awayChannelName;
+                }
 
-            ts3core.edit(false, value._propcache.cid, subName, '', '', '');
-        });
-
-    }).catch(e => {
-        console.log(e);
-    });
+                //Change the name of the channel
+                return ts3core.edit(false, channel._propcache.cid, subName, '', '', '')
+                .then(() => {
+                    return ApiReply('Channel Edited', channel._propcache.cid)
+                })
+                .catch(err => { 
+                    throw failedApiReply(err, 'setSubChannelsPrivate: Failed to edit channel');
+                })
+            });
+                            
+            //Resolves and Checks if there was any problem with executiong returns results.
+            return Promise.all(promiseArr)
+            .then(resultsArray => {
+                return ApiReply('setSubChannelsPrivate: Channel Edited', resultsArray)
+                // do something after the loop finishes
+            }).catch(err => {
+                throw failedApiReply(err, 'setSubChannelsPrivate: Error Editing.'); 
+            // do something when any of the promises in array are rejected
+            })
+             //
+        }
+    })
+    .catch(err => {
+        throw failedApiReply(err, 'setSubChannelsPrivate: Failed to get subChannelList');
+    })
 
 }
 
@@ -984,35 +1402,57 @@ const setSubChannelsPrivate = (cid) => {
  */
 const setSubChannelsPublic = (cid, password) => {
 
-
-
     cid = parseInt(cid);
 
     //Get the List of the SubChannels;
     return ts3core.subChannelList(cid)
     .then(channels => {
-      
+        //If there aren;t any subchannels then throw error
+        if (channels.length == 0) {
+        throw failedApiReply('', 'setSubChannelsPublic: Channel doesn\'t exist');
        
-        //Set Channel Group to all SubChannels
-        channels.forEach((value, i)  => {
+        } else {
 
-            subIndex = i + 1;
-        
-            if (!(subIndex == channels.length)) {
-                subName = config.channelSettings.subChannelName + " " + subIndex;
+            //Works Like a ForEach Loop but it's async
+            let promiseArr = channels.map((channel, i) => {
+                //Making the Name
+                subIndex = i + 1;
+                
+                if (!(subIndex == channels.length)) {
+                    subName = config.channelSettings.subChannelName + " " + subIndex;
 
-            } else {
-                subName = config.channelSettings.awayChannelName;
-            }
+                } else {
+                    subName = config.channelSettings.awayChannelName;
+                }
 
-            ts3core.edit(true, value._propcache.cid, subName, password, '', '');
-        });
-
-    }).catch(e => {
-        console.log(e);
-    });
+                //Change the name of the channel
+                return ts3core.edit(true, channel._propcache.cid, subName, password, '', '')
+                .then(() => {
+                    return ApiReply('Channel Edited', channel._propcache.cid)
+                })
+                .catch(err => { 
+                    throw failedApiReply(err, 'setSubChannelsPublic: Failed to edit channel');
+                })
+            });
+                            
+            //Resolves and Checks if there was any problem with executiong returns results.
+            return Promise.all(promiseArr)
+            .then(resultsArray => {
+                return ApiReply('setSubChannelsPublic: Channel Edited', resultsArray)
+                // do something after the loop finishes
+            }).catch(err => {
+                throw failedApiReply(err, 'setSubChannelsPublic: Error Editing.'); 
+            // do something when any of the promises in array are rejected
+            })
+             //
+        }
+    })
+    .catch(err => {
+        throw failedApiReply(err, 'setSubChannelsPublic: Failed to get subChannelList');
+    })
 
 }
+
 
 
 /**
@@ -1021,11 +1461,11 @@ const setSubChannelsPublic = (cid, password) => {
 const getFreeTeams = () => {
     //Find all the Teams that are Free
     return Teams.find({status: 'free'}).then((teams) => {
-            return teams;
+        return ApiReply('setSubChannelsPublic: Channel Edited', teams)
         })
-    .catch(e => {
-        console.log(e);
-    });
+    .catch(err => {
+        throw failedApiReply(err, 'setClientChannelGroupUid: Failed to get cldbid');
+    })
 }
 
 
@@ -1051,7 +1491,8 @@ module.exports = {
     moveToFirstChannel,
     setClientServerGroupByUid,
     removeClientServerGroupByUid,
-    setClientChannelGroupUid
+    setClientChannelGroupUid,
+    setChannelGroupbyUid
     
 };
 

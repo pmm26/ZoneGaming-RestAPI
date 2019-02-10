@@ -16,8 +16,8 @@ var {Teams} = require('../models/teams');
 
 
 
-let ownerUuid = 'slOGgvdBuVrdr5EAPVdtdpiO2I8=';
-//let ownerUuid = '0z3KOFg5TVbq0VesMmkGz54rrGk=';
+//let ownerUuid = 'slOGgvdBuVrdr5EAPVdtdpiO2I8=';
+let ownerUuid = '0z3KOFg5TVbq0VesMmkGz54rrGk=';
 
 ts3.on("ready", () => {
 
@@ -26,6 +26,7 @@ ts3.on("ready", () => {
         if (!(err.status == 'FAIL')) {
     
             failedApi = {
+                code: 500,
                 status: 'FAIL',
                 msg: msg,
                 err: err
@@ -35,6 +36,23 @@ ts3.on("ready", () => {
     }
 
 /*
+    ts3.getChannelGroupByID(5).then(cannel => {
+        console.log(cannel)
+
+        //Get the List of clients that are part of that ChannelGroup
+
+
+        return cannel.clientList(520)
+        .then(clients => { 
+            console.log(clients)
+        }).catch(err => {
+            console.log('Error getting client list'); 
+        })
+    }).catch(err => {
+        console.log('1'); 
+    })
+
+
     ts3.clientInfo(1)
     .then(info => {
 
@@ -66,7 +84,7 @@ ts3.on("ready", () => {
 
 
 
-
+/*
     ts3.clientInfo(1)
     .then(info => {
 
@@ -74,11 +92,11 @@ ts3.on("ready", () => {
 
 
 
-        ts3.clientInfo(1)
+        return ts3.clientInfo(1)
         .then(info => {
             //console.log(info)
-            Swag = {msg: 'Error Main'}
-            throw Swag;
+            
+            throw failedApiReply('Fail', 'fail');
  
         }).catch(e => {
             console.log(e)
@@ -87,9 +105,17 @@ ts3.on("ready", () => {
 
         
     }).catch(e => {
-        console.log('Hello Error2')
+        console.log(e)
     })
+*/
 
+    // app.setChannelGroupbyUid(50, 491, ownerUuid)
+    // .then(api => {
+    //     console.log(api);
+    // })
+    // .catch(api => {
+    //     console.log(api);
+    // })
 
     //app.addUserToTeam('5bcc8d0f732f3c14ece73b4d', '5bcd18143455c75fb3a112ad', 2)
 
@@ -98,27 +124,36 @@ ts3.on("ready", () => {
     //app.registerClient('Hard', ownerUuid)
 
     // app.reassignChannelGroups('5bcc8d0f732f3c14ece73b4d')
-    // .then(api => {
-    //     console.log(api);
-    // })
+    
 
-    //app.channelRemoveChannelGroupClients(484)
+    app.channelRemoveChannelGroupClients(519)
 
-    //app.moveChannel('5bcc8d14346a1015012cdba1', '5bcc8d0b3c1af814d72dc716')
+    //app.moveChannel('5bcc8d0f732f3c14ece73b4d', '5bcc8d0b3c1af814d72dc716')
+
 
     //app.changeTeamName('5bcc8d0b3c1af814d72dc716', 'Scrub')
 
-    //app.createServerGroup(ownerUuid)
+    //    app.createServerGroup(ownerUuid)
+
 
     //app.crawlerChannels()
 
     //app.claimChannels(ownerUuid, 'name')
 
-    //app.createTeam('name', 'password', ownerUuid, 1, true)
+   // app.createTeam('name', 'password', '5bcd16547e63455f2b1afdaf', 1, true)
+    // .then(api => {
+    //     console.log(api);
+    // })
+    // .catch(api => {
+    //     console.log(api);
+    // })
+
+    //app.addUserToTeam('5bd1c3787b14440d6d55cd08', '5bcd16547e63455f2b1afdaf', 1)
 
     //app.getTopFreeChannel(1).then(console.log())
 
-    //app.freeUpChanels()
+    app.freeUpChanels()
+
 
 
     //app.createTeam('ZoneG', 'password', ownerUuid, 2, true)
@@ -134,22 +169,32 @@ ts3.on("ready", () => {
 
     //app.moveToFirstChannel(116, ownerUuid)
 
-    //app.setClientChannelGroupUid(8, 123, ownerUuid)
-    
+    //app.setClientChannelGroupUid(5, 547, ownerUuid)
+
+    .then(api => {
+        console.log(api);
+    })
+    .catch(api => {
+        console.log(api);
+    })
     //ts3core.getClidFromUid(ownerUuid)
     //ts3.setClientChannelGroup(5, 126, 4);
 
-    //createTeam("name", "password", ownerUuid, 1, true)
+    //app.createChannels("name", "password", ownerUuid, 1, true)
+
+  
 
     //app.createGroupOfChannels("Zg1", "password", "topic", "description", 101, 2)
+   
 
 
     //Storing in the database details about the Channel and the Teamspeak Channel ids.
 
+//    app.setSubChannelsPublic(547)
 
+    // app.setSubChannelsPrivate(547)
 
-    //app.setSubChannelsPrivate(123);
-    //app.setSubChannelsPublic(123);
+ 
 
    
     /* Test SubChannelList

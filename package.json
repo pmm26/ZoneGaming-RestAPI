@@ -11,8 +11,8 @@
   "dependencies": {
     "express": "^4.16.4",
     "lodash": "^4.17.11",
-    "mongoose": "^5.3.3",
-    "ts3-nodejs-library": "^1.10.3",
-    "validator": "^10.8.0"
+    "mongoose": "^5.4.4",
+    "ts3-nodejs-library": "^1.12.0",
+    "validator": "^10.11.0"
   }
 }

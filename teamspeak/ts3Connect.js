@@ -149,7 +149,9 @@ const subChannelList = (cid) => {
         //TODO: maybe add a way to see if the method as successful by returning true
         return ts3.channelList({pid: cid })
             .then(channels => { return channels })
-            .catch(console.error);
+            .catch(err => {
+                throw failedApiReply(err, 'setChannelGroupbyUid: Error Saving data on the database'); 
+            })
         
     } else {
         console.log('subChannelList: Invalid Input');
@@ -199,7 +201,9 @@ const getCldbidFromUid = (uid) => {
             .then(data => { 
                 return data.cldbid; 
             })
-            .catch(err => console.error('getCldbidFromUid error:', err));
+            .catch(err => {
+                throw failedApiReply(err, 'setChannelGroupbyUid: Error Saving data on the database'); 
+            })
 
     } else {
         console.log('getCldbidFromUid: Invalid Input');
