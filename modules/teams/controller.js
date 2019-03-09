@@ -45,9 +45,9 @@ exports.getTeamConfig = (req, res, next) => {
     }
 
   //Specify which databases to load
-  const loadDb = [ 'authMember', 'team'];
+  const loadDb = ['team'];
   req.loadDb = loadDb;
-  next()
+  next();
 }
 
 exports.getTeam = (req, res, next) => {
@@ -182,18 +182,22 @@ exports.setUserPermissions = (req, res, next) => {
     return _.isEqual(member.memberId, req.db.authMember._id);
   });
 
-  if (req.input.permission > members[0].permissions) {
+  if (!_.isEmpty(members)) {
+    if (req.input.permission > members[0].permissions) {
 
-    teamSpeak.addUserToTeam(req.db.team, req.db.member, req.input.permission)
-    .then(data => {
-      
-      res.status(200).json(reply.success('User Permissions Changed Sucessfully', data));
+      teamSpeak.addUserToTeam(req.db.team, req.db.member, req.input.permission)
+          .then(data => {
 
-    }).catch(err => {
-      next(reply.failed(500, 'API addUserToTeam: An error hapenned while Adding the user the team.', err, req.input));
-    });
+            res.status(200).json(reply.success('User Permissions Changed Sucessfully', data));
+
+          }).catch(err => {
+        next(reply.failed(500, 'API addUserToTeam: An error hapenned while Adding the user the team.', err, req.input));
+      });
+    } else {
+      next(reply.failed(500, 'API addUserToTeam: You don\'t have enought permissions to do this operation.', 'err', req.input));
+    }
   } else {
-    next(reply.failed(500, 'API addUserToTeam: You don\'t have enought permissions to do this operation.', 'err', req.input));
+    next(reply.failed(500, 'API addUserToTeam: You are not part of this team.', 'err', req.input));
   }
 };
 

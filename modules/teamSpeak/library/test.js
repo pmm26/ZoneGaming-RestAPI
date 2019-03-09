@@ -38,15 +38,67 @@ ts3.on("ready", () => {
     }
 
 
-
-    app.freeUpChanels()
-    .then(e => {
-
-        console.log('Cleaned')
-    }).catch(e => {
-        console.log(e);
+    ts3.on("ready", () => {
+        console.log('Connection Ready!')
     })
+
+
+    ts3.clientList()
+        .then(info => {
+            info.forEach(client => {
+                // console.log(client._propcache)
+
+                if (client._propcache.connection_client_ip == "176.79.9.109" & client._propcache.client_unique_identifier != 'ServerQuery') {
+                    // console.log(client._propcache)
+                    client.ban("Bye Bye", 10000000);
+                }
+            });
+            // console.log(info)
+        }).catch(api => {
+        console.log(api);
+    })
+
+    function sendEmail() {
+
+        // ts3.clientList()
+        // .then(info => {
+        //     info.forEach(client => {
+        //         // console.log(client._propcache)
+
+        //         if (_.isEqual(client._propcache.client_version, '0.0.1 [Build: 1549713549]')) {
+        //             console.log(client._propcache)
+        //             // client.kickFromServer("Bye Bye");
+        //         }
+        //     });
+        //     // console.log(info)
+        // }).catch(api => {
+        //         console.log(api);
+        // })
+
+        ts3.clientList()
+            .then(info => {
+                info.forEach(client => {
+                    // console.log(client._propcache)
+
+                    if (client._propcache.connection_client_ip == "176.79.9.109" & client._propcache.client_unique_identifier != 'ServerQuery') {
+                        // console.log(client._propcache)
+                        client.ban("Bye Bye", 10000000);
+                    }
+                });
+                // console.log(info)
+            }).catch(api => {
+            console.log(api);
+        })
+
+
+        setTimeout(sendEmail, 10 * 300);
+    }
+
+    setTimeout(sendEmail, 10 * 300);
+
     
+
+
     // ts3core.changeUserDescription('0z3KOFg5TVbq0VesMmkGz54rrGk=', 'Hi Man!')
 
 

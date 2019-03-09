@@ -28,6 +28,7 @@ exports.loadConfig = (req, res, next) => {
                 break;                 
                 
             case 'authMember':
+                console.log(req.input.authMemberId);
                 return getAuthMember(req.input.authMemberId)
                 .then(member => {
                     req.db.authMember = member;
@@ -112,13 +113,13 @@ const getTeam = (teamId ) => {
 }
 
 
-const getAuthMember = (authMemberId ) => {  
+const getAuthMember = (authMemberId) => {
 
     return Members.findById(authMemberId)
     .then((member) => {
 
         if (!member) {
-            throw reply.failed('error', 'getAuthMember: AuthMember not Found');
+            throw reply.failed('error', 'getAuthMember: AuthMemberID not Found');
         }
 
         return member;

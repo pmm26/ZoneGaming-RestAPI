@@ -44,7 +44,7 @@ router.patch('/team/:teamId', isAuth, teamController.changeTeamNameConfig, db.lo
 // //Delete logo
 // router.delete('/logo/:teamId', dbLoad, isAuth, isChannelAdmin, teamController.deleteLogo);
 
-//Add user to team
+//change user permissions to team
 router.post('/member/:teamId', isAuth, teamController.setUserPermissionsConfig, db.loadConfig, isChannelMod, isOnline, teamController.setUserPermissions);
 
 //Move Team

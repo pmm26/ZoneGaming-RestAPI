@@ -35,8 +35,8 @@ exports.getchannelView = (req, res, next) => {
   
   teamSpeak.channelView(params.cid)
   .then(data => {
-
-    res.status(200).json(reply.success('Teams name Changed', data));
+    console.log(data);
+    res.status(200).json(reply.success('Channels Fetched', data));
 
   }).catch(err => {
     throw reply.failed(500, 'API getchannelView: an error happened while getting channel View', err, '');
